@@ -18,7 +18,11 @@ const InfoIcon = ({ text }) => (
   </Tooltip>
 );
 
-const getColorPsychology = (h) => {
+const getColorPsychology = (h, s, l) => {
+  if (l <= 5) return { name: 'Negro', feel: 'Elegancia, Poder, Sofisticación, Misterio.', industry: 'Lujo, Moda, Tecnología premium.' };
+  if (l >= 95) return { name: 'Blanco', feel: 'Pureza, Limpieza, Simplicidad, Paz.', industry: 'Salud, Bodas, Tecnología minimalista.' };
+  if (s <= 10) return { name: 'Gris', feel: 'Neutralidad, Equilibrio, Profesionalismo, Calma.', industry: 'Corporativo, Automotriz, Diseño.' };
+
   if (h >= 345 || h < 15) return { name: 'Rojo', feel: 'Pasión, Energía, Peligro, Urgencia.', industry: 'Comida, Entretenimiento, Deportes.' };
   if (h >= 15 && h < 45) return { name: 'Naranja', feel: 'Creatividad, Juventud, Aventura, Entusiasmo.', industry: 'Arte, Tecnología joven, E-commerce.' };
   if (h >= 45 && h < 75) return { name: 'Amarillo', feel: 'Felicidad, Optimismo, Alerta, Calidez.', industry: 'Viajes, Transporte, Atención infantil.' };
@@ -190,7 +194,7 @@ function InteractiveWheel() {
   const currentHex = hslToHex(hsl.h, hsl.s, hsl.l);
   const currentRgb = hexToRgb(currentHex);
   const currentCmyk = rgbToCmyk(currentRgb.r, currentRgb.g, currentRgb.b);
-  const psychology = getColorPsychology(hsl.h);
+  const psychology = getColorPsychology(hsl.h, hsl.s, hsl.l);
 
   const handleHexChange = (hex) => {
     const rgb = hexToRgb(hex);
@@ -209,10 +213,12 @@ function InteractiveWheel() {
 
     const distance = Math.sqrt(x*x + y*y);
     const radius = rect.width / 2;
-    let l = 100 - (distance / radius) * 100;
-    l = Math.max(0, Math.min(100, Math.round(l)));
+    
+    // Ahora mapeamos la distancia al centro hacia la Saturación (0 al centro, 100 al borde)
+    let s = (distance / radius) * 100;
+    s = Math.max(0, Math.min(100, Math.round(s)));
 
-    setHsl(prev => ({ ...prev, h: Math.round(angle), l }));
+    setHsl(prev => ({ ...prev, h: Math.round(angle), s }));
   };
 
   const onMouseDown = (e) => {
@@ -242,7 +248,8 @@ function InteractiveWheel() {
   // Coordenadas matemáticas para SVG Geométrico
   const cx = 150;
   const cy = 150;
-  const markerRadius = 150 * ((100 - hsl.l) / 100);
+  // El radio del marcador ahora depende de la SATURACIÓN
+  const markerRadius = 150 * (hsl.s / 100);
   const markerRad = (hsl.h - 90) * Math.PI / 180;
   const markerX = cx + markerRadius * Math.cos(markerRad);
   const markerY = cy + markerRadius * Math.sin(markerRad);
@@ -339,19 +346,20 @@ function InteractiveWheel() {
               boxShadow: '0 0 40px rgba(255,255,255,0.1)'
             }}
           >
-            {/* Overlay de Saturación */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              borderRadius: '50%', background: '#808080',
-              opacity: 1 - hsl.s / 100,
-              pointerEvents: 'none'
-            }}></div>
-            
-            {/* Overlay de Luminosidad */}
+            {/* Capa de Saturación (Radial): Centro Gris (S=0), Borde Transparente (S=100) */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               borderRadius: '50%',
-              background: 'radial-gradient(circle closest-side, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)',
+              background: 'radial-gradient(circle closest-side, #808080 0%, transparent 100%)',
+              pointerEvents: 'none'
+            }}></div>
+            
+            {/* Capa de Luminosidad (Sólida): Controlada por el slider */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              borderRadius: '50%',
+              background: hsl.l > 50 ? 'white' : 'black',
+              opacity: Math.abs(hsl.l - 50) / 50,
               pointerEvents: 'none'
             }}></div>
             
@@ -421,9 +429,10 @@ function InteractiveWheel() {
               <input type="range" min="0" max="100" value={hsl.s} onChange={(e) => setHsl({...hsl, s: parseInt(e.target.value)})} style={{ width: '100%', cursor: 'pointer' }} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#cbd5e1', fontWeight: 'bold' }}>
-                <span style={{display: 'flex', alignItems: 'center'}}>Brillo/Luz <InfoIcon text="Blanco o negro en el color (0-100%)." /></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(59, 130, 246, 0.15)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.4)', marginTop: '0.5rem', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '-10px', right: '15px', background: '#3b82f6', color: 'white', fontSize: '0.65rem', padding: '0.1rem 0.5rem', borderRadius: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Global</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#f8fafc', fontWeight: 'bold' }}>
+                <span style={{display: 'flex', alignItems: 'center'}}>Brillo / Luz <InfoIcon text="Controla la luz de toda la rueda. 50% = Colores puros. 100% = Blanco. 0% = Negro." /></span>
                 <span>{hsl.l}%</span>
               </div>
               <input type="range" min="0" max="100" value={hsl.l} onChange={(e) => setHsl({...hsl, l: parseInt(e.target.value)})} style={{ width: '100%', cursor: 'pointer' }} />
@@ -560,8 +569,27 @@ function App() {
         <InteractiveWheel />
       </section>
       
-      <footer style={{textAlign: 'center', padding: '2rem 0', color: '#64748b', borderTop: '1px solid var(--border-color)', marginTop: '4rem'}}>
-        <p>Aplicación interactiva diseñada para la enseñanza visual profunda.</p>
+      <footer style={{textAlign: 'center', padding: '2rem 0', color: '#64748b', borderTop: '1px solid var(--border-color)', marginTop: '4rem', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center'}}>
+        <p>Aplicación interactiva diseñada para la enseñanza visual profunda de la Teoría del Color.</p>
+        <a 
+          href="https://github.com/RodriguezMatias/color-theory" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)', 
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+            color: '#cbd5e1', textDecoration: 'none', fontWeight: 'bold',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#cbd5e1'; }}
+        >
+          <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+          </svg>
+          Sugerencias y Mejoras en GitHub
+        </a>
       </footer>
     </div>
   );
